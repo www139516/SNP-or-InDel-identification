@@ -1,0 +1,33 @@
+# 玉米与mouse格式不同最终取的列数不同
+制作重复序列步骤网站: [https://github.com/HipSTR-Tool/HipSTR-references](https://github.com/HipSTR-Tool/HipSTR-references)
+
+
+```
+bedtools merge -i pass.v4.r2 -c 4,5 -o collapse -d 10 | grep -v "," > pass.v4.r3
+bedtools merge -i pass.v4.r2 -c 4,4,4,5 -o collapse,count_distinct,distinct,collapse -d 10 | grep "," | awk '$5 == 1' | awk -v OFS="\t" '{print $1, $2, $3, $6, $7}' | sed "s/,/\//g" >> pass.v4.r3
+cat pass.v4.r4 | bedtools sort | awk -v OFS="\t" '{print $1, $5, $6, $7, $8, "MAIZE_STR_"NR, $5}' > v4.hipstr_reference.bed
+```
+## 制作repeat bed 文件
+1. 基因组文件需拆分成每条染色体一个文件
+```
+awk '/^>/{f=++d".fasta"} {print > f}' input.fasta
+```
+
+##运行STR
+```
+../HipSTR --bams HRR000187_sort.bam,HRR000191_sort.bam --fasta /data3/han/v4_han/raw_fasta/v4.fa --regions /data3/han/v4_han/v4.hipstr_reference.bed --str-vcf out.vcf.gz --bam-samps S1,S2 --bam-libs L1,L2 --min-reads 15 --def-stutter-model
+```
+## 
+王凤格: STR参数设置
+| SSR | repeats | score |ref_score |
+| ------ | ------ | ------ |------ |
+| 2 | 3 | 12|22|
+| 3 | 2 | 14 |28|
+| 4 | 2 | 16 |28|
+| 5 | 2 | 20 |32|
+| 6 | 2 | 24 |34|
+
+## 过滤vcf文件
+```
+python ./filter_vcf.py --vcf /data3/han/src/HipSTR/test_01/out.vcf --min-call-qual 0.9 --max-call-flank-indel 0.15   --max-call-stutter 0.15 --min-call-allele-bias -2 --min-call-strand-bias -2 > out_filted.vcf
+```

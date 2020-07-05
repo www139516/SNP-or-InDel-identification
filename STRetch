@@ -1,0 +1,111 @@
+# 安装流程
+1. 所有依赖包需要手动下载 (miniconda如果已经安装, 可以注释掉)
+1.1 阅读install.sh, 除了参考基因组文件, 其他url均手动下载
+1.2 把install.sh中所有下载的代码注释掉. 
+1.3 将依赖包考入tools文件夹中, 运行注释掉的install.sh
+1.4 按照文档要求自己制作.decoy基因组和注释文件[https://github.com/Oshlack/STRetch/wiki/Reference-Data](https://github.com/Oshlack/STRetch/wiki/Reference-Data)
+1.5 需要单独安装R包 optparse, 进入R后安装. 
+```
+install.packages('optparse')
+```
+1.6 运行install.sh后会包warning, 缺失参考文件数据
+1.7 自行制作参考数据后, 改动 pipeline_config.groovy文件中的配置目录信息
+```
+REF="/home/hdashnow/STRetch/reference-data/v4.STRdecoys.sorted.fasta"
+# 注意原来是_dedup必须改成.dedup 必须是参考文件里有的文件名, 原文是simplestrepeat_, 改成trf_
+STR_BED="/home/hdashnow/STRetch/reference-data/v4.trf_period1-6.dedup.sorted.bed"
+```
+1.8 运行STRetch是需要进入python3环境, 并安装biopython包
+1.9 如果基因组没有SRR的注释, 需要下载tendom repeat finder进行注释: Download TRF from: [https://tandem.bu.edu/trf/trf409.linux64.download.html](https://tandem.bu.edu/trf/trf409.linux64.download.html)
+1.10 stage_pipeline 文件中的\$goleft, \$bedtools, \$python 要把\$去掉, 否则无法运行
+1.11 goleft必须是0.1.8版本
+1.12 必须使用软件自带的miniconda进入STR环境
+1.13 coverage文件中必须不是0
+# 运行
+```
+/data3/han/src/STRetch-master_01/STRetch-master/tools/bin/bpipe run /data3/han/src/STRetch-master_01/STRetch-master/pipelines/STRetch_wgs_pipeline.groovy HRR000883_R1.fastq.gz HRR000883_R2.fastq.gz
+```
+# output files
+1. sample.STRs.tsv
+2. STR.tsv
+3. 解析
+* reflen - number of repeat units in the reference: 重复序列在参考基因组中的次数
+* locuscoverage - number of STR reads assigned to that locus: STR reads在这个位置的重复次数
+* outlier - z score testing for outliers: z score
+* p_adj - adjusted p value, is this locus significantly expanded relative to other samples? (p values have 
+already been adjusted for multiple testing using the Benjamini-Hochberg method)
+* bpInsertion - estimated size of allele in bp inserted relative to the reference
+* repeatUnits - estimated total size of allele in repeat units
+# python_pipeline
+```
+def fozu():
+    print("                            _ooOoo_                     ")
+    print("                           o8888888o                    ")
+    print("                           88  .  88                    ")
+    print("                           (| -_- |)                    ")
+    print("                            O\\ = /O                    ")
+    print("                        ____/`---'\\____                ")
+    print("                      .   ' \\| |// `.                  ")
+    print("                       / \\||| : |||// \\               ")
+    print("                     / _||||| -:- |||||- \\             ")
+    print("                       | | \\\\\\ - /// | |             ")
+    print("                     | \\_| ''\\---/'' | |              ")
+    print("                      \\ .-\\__ `-` ___/-. /            ")
+    print("                   ___`. .' /--.--\\ `. . __            ")
+    print("                ."" '< `.___\\_<|>_/___.' >'"".         ")
+    print("               | | : `- \\`.;`\\ _ /`;.`/ - ` : | |     ")
+    print("                 \\ \\ `-. \\_ __\\ /__ _/ .-` / /      ")
+    print("         ======`-.____`-.___\\_____/___.-`____.-'====== ")
+    print("                            `=---='  ")
+    print("                                                        ")
+    print("         .............................................  ")
+    print("                  Prey for no bug                      ")
+    print("                  Zen of python:                       ")
+    print("                  Beautiful is better than ugly.；      ")
+    print("                  Explicit is better than implicit.     ")
+    print("                  Simple is better than complex.        ")
+    print("                  Complex is better than complicated.   ")
+    print("                  Flat is better than nested.           ")
+    print("                  Sparse is better than dense.          ")
+    print("                  Readability counts.                   ")
+    print("                  Now is better than never.             ")
+
+
+import os
+import subprocess
+
+fozu()
+dir_str_pipe = '/data3/han/src/STRetch-master_01/STRetch-master/pipelines'
+dir_bpipe = '/data3/han/src/STRetch-master_01/STRetch-master/tools/bin/'
+data_dir = os.getcwd()
+
+all_files = os.listdir(data_dir)
+
+all_seq_file_path = list()
+for file in all_files:
+    if file.endswith('.fastq.gz') or file.endswith('.fq.gz') or file.endswith('.fastq') or file.endswith('.fq'):
+        all_seq_file_path.append(os.path.join(data_dir, file))
+
+renamed_seq_file_paths = list()
+for seq_file_path in all_seq_file_path:
+    old_name = os.path.basename(seq_file_path)
+    if not '_R1'in old_name and not '_R2' in old_name:
+        new_name = old_name.replace('_', '_R')
+        renamed_seq_file_path = os.path.join(data_dir, new_name)
+        os.rename(seq_file_path, renamed_seq_file_path)
+        renamed_seq_file_paths.append(renamed_seq_file_path)
+    else:
+        renamed_seq_file_paths.append(seq_file_path)
+
+files_for_process = ' '.join(renamed_seq_file_paths)
+
+bpipe_path = os.path.join(dir_bpipe, 'bpipe')
+str_pipe_path = os.path.join(dir_str_pipe, 'STRetch_wgs_pipeline.groovy')
+
+#/data3/han/src/STRetch-master_01/STRetch-master/tools/bin/bpipe run /data3/han/src/STRetch-master_01/STRetch-master/pipelines/STRetch_wgs_pipeline.groovy HRR000883_R1.fastq.gz HRR000883_R2.fastq.gz
+cmd = '{bpipe} run {str_pipe} {files}'.format(bpipe=bpipe_path, str_pipe=str_pipe_path, files=files_for_process)
+
+if subprocess.check_call(cmd, shell=True) != 0:
+    raise SystemCommandError
+
+```
